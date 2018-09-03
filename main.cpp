@@ -48,14 +48,14 @@ int main() {
 
     auto messenger = instance->createDebugUtilsMessengerEXTUnique(
         vk::DebugUtilsMessengerCreateInfoEXT{ vk::DebugUtilsMessengerCreateFlagsEXT(),
-                                                vk::DebugUtilsMessageSeverityFlagBitsEXT::eError |
-                                                    vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-                                                    vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
-                                                    vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo,
-                                                vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
-                                                    vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
-                                                    vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
-                                                debugCallback },
+                                              vk::DebugUtilsMessageSeverityFlagBitsEXT::eError |
+                                                  vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+                                                  vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
+                                                  vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo,
+                                              vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
+                                                  vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
+                                                  vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+                                              debugCallback },
         nullptr, vk::DispatchLoaderDynamic{ *instance });
 
     VkSurfaceKHR surfaceTmp;
@@ -98,8 +98,8 @@ int main() {
     float queuePriority = 0.0f;
     for (int queueFamilyIndex : uniqueQueueFamilyIndices) {
         queueCreateInfos.push_back(vk::DeviceQueueCreateInfo{ vk::DeviceQueueCreateFlags(),
-                                                                 static_cast<uint32_t>(queueFamilyIndex),
-                                                                 1, &queuePriority });
+                                                              static_cast<uint32_t>(queueFamilyIndex),
+                                                              1, &queuePriority });
     }
 
     const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
@@ -118,21 +118,62 @@ int main() {
             return std::make_tuple(vk::SharingMode::eExclusive, 0u, static_cast<uint32_t*>(nullptr));
         }
     }();
-    //needed for validation warnings
+    // needed for validation warnings
     auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
     auto formats = physicalDevice.getSurfaceFormatsKHR(*surface);
 
+    vk::Format format = vk::Format::eB8G8R8A8Unorm;
+
     vk::SwapchainCreateInfoKHR swapChainCreateInfo(
-        vk::SwapchainCreateFlagsKHR(), surface.get(), imageCount, vk::Format::eB8G8R8A8Unorm,
-        vk::ColorSpaceKHR::eSrgbNonlinear, VkExtent2D{ width, height }, 1, vk::ImageUsageFlagBits::eColorAttachment,
+        vk::SwapchainCreateFlagsKHR(), surface.get(), imageCount, format, vk::ColorSpaceKHR::eSrgbNonlinear,
+        VkExtent2D{ width, height }, 1, vk::ImageUsageFlagBits::eColorAttachment,
         std::get<vk::SharingMode>(sharingModeTuple), std::get<uint32_t>(sharingModeTuple),
         std::get<uint32_t*>(sharingModeTuple), vk::SurfaceTransformFlagBitsKHR::eIdentity,
         vk::CompositeAlphaFlagBitsKHR::eOpaque, vk::PresentModeKHR::eFifo, true, nullptr);
 
     auto swapChain = device->createSwapchainKHRUnique(swapChainCreateInfo);
 
-    const char kShaderSource[] = "#version 310 es\n"
-                                 "void main() { int x = 5; }\n";
+    std::vector<vk::Image> swapChainImages = device->getSwapchainImagesKHR(swapChain.get());
+
+    std::vector<vk::UniqueImageView> imageViews;
+    imageViews.reserve(swapChainImages.size());
+    for (auto image : swapChainImages) {
+        vk::ComponentMapping componentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
+                                              vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA);
+        vk::ImageSubresourceRange subResourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+        vk::ImageViewCreateInfo imageViewCreateInfo(vk::ImageViewCreateFlags(), image, vk::ImageViewType::e2D,
+                                                    format, componentMapping, subResourceRange);
+        imageViews.push_back(device->createImageViewUnique(imageViewCreateInfo));
+    }
+
+    const char kShaderSource[] = R"vertexshader(
+        #version 450
+        #extension GL_ARB_separate_shader_objects : enable
+
+        out gl_PerVertex {
+            vec4 gl_Position;
+        };
+
+        layout(location = 0) out vec3 fragColor;
+
+        vec2 positions[3] = vec2[](
+            vec2(0.0, -0.5),
+            vec2(0.5, 0.5),
+            vec2(-0.5, 0.5)
+        );
+
+        vec3 colors[3] = vec3[](
+            vec3(1.0, 0.0, 0.0),
+            vec3(0.0, 1.0, 0.0),
+            vec3(0.0, 0.0, 1.0)
+        );
+
+        void main() {
+            gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
+            fragColor = colors[gl_VertexIndex];
+        }
+    )vertexshader";
+
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
     shaderc::SpvCompilationResult module =
