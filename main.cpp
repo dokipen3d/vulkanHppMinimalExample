@@ -14,9 +14,9 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                                    VkDebugUtilsMessageTypeFlagsEXT messageType,
-                                                    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                                                    void* pUserData) {
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData) {
     std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
     return VK_FALSE;
 }
@@ -33,7 +33,7 @@ int main() {
     glfwSetKeyCallback(window, key_callback);
 
     vk::ApplicationInfo appInfo("Hello Triangle", VK_MAKE_VERSION(1, 0, 0), "No Engine",
-                                VK_MAKE_VERSION(1, 0, 0), VK_API_VERSION_1_0);
+        VK_MAKE_VERSION(1, 0, 0), VK_API_VERSION_1_0);
 
     auto glfwExtensionCount = 0u;
     auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -42,20 +42,16 @@ int main() {
     auto layers = std::vector<const char*>{ "VK_LAYER_LUNARG_standard_validation" };
 
     auto instance = vk::createInstanceUnique(
-        vk::InstanceCreateInfo{ vk::InstanceCreateFlags(), &appInfo, static_cast<uint32_t>(layers.size()),
-                                layers.data(), static_cast<uint32_t>(glfwExtensionsVector.size()),
-                                glfwExtensionsVector.data() });
+        vk::InstanceCreateInfo{ {}, &appInfo, static_cast<uint32_t>(layers.size()), layers.data(),
+            static_cast<uint32_t>(glfwExtensionsVector.size()), glfwExtensionsVector.data() });
 
     auto messenger = instance->createDebugUtilsMessengerEXTUnique(
-        vk::DebugUtilsMessengerCreateInfoEXT{ vk::DebugUtilsMessengerCreateFlagsEXT(),
-                                              vk::DebugUtilsMessageSeverityFlagBitsEXT::eError |
-                                                  vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-                                                  vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
-                                                  vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo,
-                                              vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
-                                                  vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
-                                                  vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
-                                              debugCallback },
+        vk::DebugUtilsMessengerCreateInfoEXT{ {},
+            vk::DebugUtilsMessageSeverityFlagBitsEXT::eError | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+                vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo,
+            vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
+                vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+            debugCallback },
         nullptr, vk::DispatchLoaderDynamic{ *instance });
 
     VkSurfaceKHR surfaceTmp;
@@ -65,19 +61,18 @@ int main() {
 
     auto physicalDevices = instance->enumeratePhysicalDevices();
 
-    auto physicalDevice = physicalDevices[std::distance(
-        physicalDevices.begin(), std::find_if(physicalDevices.begin(), physicalDevices.end(), [](const vk::PhysicalDevice& physicalDevice) {
+    auto physicalDevice = physicalDevices[std::distance(physicalDevices.begin(),
+        std::find_if(physicalDevices.begin(), physicalDevices.end(), [](const vk::PhysicalDevice& physicalDevice) {
             return strstr(physicalDevice.getProperties().deviceName, "Intel");
         }))];
 
     auto queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 
-    size_t graphicsQueueFamilyIndex =
-        std::distance(queueFamilyProperties.begin(),
-                      std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(),
-                                   [](vk::QueueFamilyProperties const& qfp) {
-                                       return qfp.queueFlags & vk::QueueFlagBits::eGraphics;
-                                   }));
+    size_t graphicsQueueFamilyIndex = std::distance(queueFamilyProperties.begin(),
+        std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(),
+            [](vk::QueueFamilyProperties const& qfp) {
+                return qfp.queueFlags & vk::QueueFlagBits::eGraphics;
+            }));
 
     size_t presentQueueFamilyIndex = [&]() {
         for (size_t i = 0; i < queueFamilyProperties.size(); i++) {
@@ -91,44 +86,43 @@ int main() {
     std::set<size_t> uniqueQueueFamilyIndices = { graphicsQueueFamilyIndex, presentQueueFamilyIndex };
 
     std::vector<uint32_t> FamilyIndices = { uniqueQueueFamilyIndices.begin(),
-                                            uniqueQueueFamilyIndices.end() };
+        uniqueQueueFamilyIndices.end() };
 
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 
     float queuePriority = 0.0f;
     for (int queueFamilyIndex : uniqueQueueFamilyIndices) {
         queueCreateInfos.push_back(vk::DeviceQueueCreateInfo{ vk::DeviceQueueCreateFlags(),
-                                                              static_cast<uint32_t>(queueFamilyIndex),
-                                                              1, &queuePriority });
+            static_cast<uint32_t>(queueFamilyIndex), 1, &queuePriority });
     }
 
     const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
     vk::UniqueDevice device = physicalDevice.createDeviceUnique(
-        vk::DeviceCreateInfo(vk::DeviceCreateFlags(), queueCreateInfos.size(), queueCreateInfos.data(),
-                             0, nullptr, deviceExtensions.size(), deviceExtensions.data()));
+        vk::DeviceCreateInfo(vk::DeviceCreateFlags(), queueCreateInfos.size(),
+            queueCreateInfos.data(), 0, nullptr, deviceExtensions.size(), deviceExtensions.data()));
 
     uint32_t imageCount = 2;
 
-    auto sharingModeTuple = [&]() {
-        // using SharingModeTuple = std::tuple<vk::SharingMode, uint32_t, uint32_t*>;
-        if (graphicsQueueFamilyIndex != presentQueueFamilyIndex) {
-            return std::make_tuple(vk::SharingMode::eConcurrent, 2u, FamilyIndices.data());
-        } else {
-            return std::make_tuple(vk::SharingMode::eExclusive, 0u, static_cast<uint32_t*>(nullptr));
-        }
-    }();
+    struct SM {
+        vk::SharingMode sharingMode;
+        uint32_t familyIndicesCount;
+        uint32_t* familyIndicesDataPtr;
+    } sharingModeUtil{ (graphicsQueueFamilyIndex != presentQueueFamilyIndex) ?
+                           SM{ vk::SharingMode::eConcurrent, 2u, FamilyIndices.data() } :
+                           SM{ vk::SharingMode::eExclusive, 0u, static_cast<uint32_t*>(nullptr) } };
+
     // needed for validation warnings
     auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
     auto formats = physicalDevice.getSurfaceFormatsKHR(*surface);
 
-    vk::Format format = vk::Format::eB8G8R8A8Unorm;
+    auto format = vk::Format::eB8G8R8A8Unorm;
+    auto extent = vk::Extent2D{ width, height };
 
-    vk::SwapchainCreateInfoKHR swapChainCreateInfo(
-        vk::SwapchainCreateFlagsKHR(), surface.get(), imageCount, format, vk::ColorSpaceKHR::eSrgbNonlinear,
-        VkExtent2D{ width, height }, 1, vk::ImageUsageFlagBits::eColorAttachment,
-        std::get<vk::SharingMode>(sharingModeTuple), std::get<uint32_t>(sharingModeTuple),
-        std::get<uint32_t*>(sharingModeTuple), vk::SurfaceTransformFlagBitsKHR::eIdentity,
+    vk::SwapchainCreateInfoKHR swapChainCreateInfo({}, surface.get(), imageCount, format,
+        vk::ColorSpaceKHR::eSrgbNonlinear, extent, 1, vk::ImageUsageFlagBits::eColorAttachment,
+        sharingModeUtil.sharingMode, sharingModeUtil.familyIndicesCount,
+        sharingModeUtil.familyIndicesDataPtr, vk::SurfaceTransformFlagBitsKHR::eIdentity,
         vk::CompositeAlphaFlagBitsKHR::eOpaque, vk::PresentModeKHR::eFifo, true, nullptr);
 
     auto swapChain = device->createSwapchainKHRUnique(swapChainCreateInfo);
@@ -138,15 +132,16 @@ int main() {
     std::vector<vk::UniqueImageView> imageViews;
     imageViews.reserve(swapChainImages.size());
     for (auto image : swapChainImages) {
-        vk::ComponentMapping componentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
-                                              vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA);
-        vk::ImageSubresourceRange subResourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
-        vk::ImageViewCreateInfo imageViewCreateInfo(vk::ImageViewCreateFlags(), image, vk::ImageViewType::e2D,
-                                                    format, componentMapping, subResourceRange);
+
+        vk::ImageViewCreateInfo imageViewCreateInfo(vk::ImageViewCreateFlags(), image,
+            vk::ImageViewType::e2D, format,
+            vk::ComponentMapping{ vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
+                vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA },
+            vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
         imageViews.push_back(device->createImageViewUnique(imageViewCreateInfo));
     }
-
-    const char kShaderSource[] = R"vertexshader(
+    // const char kShaderSource[]
+    std::string kShaderSource = R"vertexshader(
         #version 450
         #extension GL_ARB_separate_shader_objects : enable
 
@@ -172,15 +167,104 @@ int main() {
             gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
             fragColor = colors[gl_VertexIndex];
         }
-    )vertexshader";
+        )vertexshader";
+
+    std::string fragmentShader = R"fragmentShader(
+        #version 450
+        #extension GL_ARB_separate_shader_objects : enable
+
+        layout(location = 0) in vec3 fragColor;
+
+        layout(location = 0) out vec4 outColor;
+
+        void main() {
+            outColor = vec4(fragColor, 1.0);
+        }
+        )fragmentShader";
 
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
-    shaderc::SpvCompilationResult module =
+    shaderc::SpvCompilationResult vertShaderModule =
         compiler.CompileGlslToSpv(kShaderSource, shaderc_glsl_vertex_shader, "vertex shader", options);
-    if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
-        std::cerr << module.GetErrorMessage();
+    if (vertShaderModule.GetCompilationStatus() != shaderc_compilation_status_success) {
+        std::cerr << vertShaderModule.GetErrorMessage();
     }
+    auto vertShaderCode = std::vector<uint32_t>{ vertShaderModule.cbegin(), vertShaderModule.cend() };
+    auto vertSize = std::distance(vertShaderCode.begin(), vertShaderCode.end());
+    auto vertShaderCreateInfo =
+        vk::ShaderModuleCreateInfo{ {}, vertSize * sizeof(uint32_t), vertShaderCode.data() };
+    auto vertexShaderModule = device->createShaderModuleUnique(vertShaderCreateInfo);
+
+    shaderc::SpvCompilationResult fragShaderModule =
+        compiler.CompileGlslToSpv(fragmentShader, shaderc_glsl_fragment_shader, "fragment shader", options);
+    if (fragShaderModule.GetCompilationStatus() != shaderc_compilation_status_success) {
+        std::cerr << fragShaderModule.GetErrorMessage();
+    }
+    auto fragShaderCode = std::vector<uint32_t>{ fragShaderModule.cbegin(), fragShaderModule.cend() };
+    auto fragSize = std::distance(fragShaderCode.begin(), fragShaderCode.end());
+    auto fragShaderCreateInfo =
+        vk::ShaderModuleCreateInfo{ {}, fragSize * sizeof(uint32_t), fragShaderCode.data() };
+    auto fragmentShaderModule = device->createShaderModuleUnique(fragShaderCreateInfo);
+
+    auto vertShaderStageInfo = vk::PipelineShaderStageCreateInfo{ {},
+        vk::ShaderStageFlagBits::eVertex, *vertexShaderModule, "main" };
+
+    auto fragShaderStageInfo = vk::PipelineShaderStageCreateInfo{ {},
+        vk::ShaderStageFlagBits::eFragment, *fragmentShaderModule, "main" };
+
+    auto pipelineShaderStages =
+        std::vector<vk::PipelineShaderStageCreateInfo>{ vertShaderStageInfo, fragShaderStageInfo };
+
+    auto vertexInputInfo = vk::PipelineVertexInputStateCreateInfo{ {}, 0u, nullptr, 0u, nullptr };
+
+    auto inputAssembly =
+        vk::PipelineInputAssemblyStateCreateInfo{ {}, vk::PrimitiveTopology::eTriangleList, false };
+
+    auto viewport =
+        vk::Viewport{ 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
+
+    auto scissor = vk::Rect2D{ { 0, 0 }, extent };
+
+    auto viewportState = vk::PipelineViewportStateCreateInfo{ {}, 1, &viewport, 1, &scissor };
+
+    auto rasterizer = vk::PipelineRasterizationStateCreateInfo{ {}, /*depthClamp*/ false,
+        /*rasterizeDiscard*/ false, vk::PolygonMode::eFill, {},
+        /*frontFace*/ vk::FrontFace::eCounterClockwise,{},{},{},{},1.0f };
+
+
+    auto multisampling = vk::PipelineMultisampleStateCreateInfo{ {}, vk::SampleCountFlagBits::e1, false, 1.0 };
+
+    auto colorBlendAttachment = vk::PipelineColorBlendAttachmentState{ {}, /*srcCol*/ vk::BlendFactor::eOne,
+        /*dstCol*/ vk::BlendFactor::eZero, /*colBlend*/ vk::BlendOp::eAdd,
+        /*srcAlpha*/ vk::BlendFactor::eOne, /*dstAlpha*/ vk::BlendFactor::eZero,
+        /*alphaBlend*/ vk::BlendOp::eAdd,
+        vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+            vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
+
+
+    auto colorBlending = vk::PipelineColorBlendStateCreateInfo{ {}, /*logicOpEnable=*/false,
+        vk::LogicOp::eCopy, /*attachmentCount=*/1, /*colourAttachments=*/&colorBlendAttachment };
+
+
+    auto pipelineLayout = device->createPipelineLayoutUnique({}, nullptr);
+
+    auto colorAttachment = vk::AttachmentDescription{ {}, format, vk::SampleCountFlagBits::e1,
+        vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, {}, {}, {}, vk::ImageLayout::ePresentSrcKHR };
+
+    auto colourAttachmentRef = vk::AttachmentReference{ 0, vk::ImageLayout::eColorAttachmentOptimal };
+
+    auto subpass = vk::SubpassDescription{ {}, vk::PipelineBindPoint::eGraphics,
+        /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef };
+
+    auto renderPass =
+        device->createRenderPassUnique(vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass });
+
+    auto pipelineCreateInfo = vk::GraphicsPipelineCreateInfo{ {}, 2, pipelineShaderStages.data(),
+        &vertexInputInfo, &inputAssembly, nullptr, &viewportState, &rasterizer, &multisampling,
+        nullptr, &colorBlending, nullptr, *pipelineLayout, *renderPass, 0 };
+
+    auto pipeline = device->createGraphicsPipelineUnique({},pipelineCreateInfo);
+    
 
     vk::Queue deviceQueue = device->getQueue(graphicsQueueFamilyIndex, 0);
     vk::Queue presentQueue = device->getQueue(graphicsQueueFamilyIndex, 0);
