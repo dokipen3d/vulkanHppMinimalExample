@@ -262,7 +262,7 @@ int main() {
 
     auto pipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo);
 
-    std::vector<vk::UniqueFramebuffer> framebuffers(imageCount);
+    auto framebuffers = std::vector<vk::UniqueFramebuffer>(imageCount);
     for (size_t i = 0; i < imageViews.size(); i++) {
         framebuffers[i] = device->createFramebufferUnique(vk::FramebufferCreateInfo{
             {}, *renderPass, 1, &(*imageViews[i]), extent.width, extent.height, 1 });
@@ -270,15 +270,41 @@ int main() {
     auto commandPoolUnique =
         device->createCommandPoolUnique({ {}, static_cast<uint32_t>(graphicsQueueFamilyIndex) });
 
-    std::vector<vk::UniqueCommandBuffer> commandBuffers = device->allocateCommandBuffersUnique(
-        vk::CommandBufferAllocateInfo(commandPoolUnique.get(), vk::CommandBufferLevel::ePrimary, framebuffers.size()));
+    auto commandBuffers = device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(
+        commandPoolUnique.get(), vk::CommandBufferLevel::ePrimary, framebuffers.size()));
 
-    vk::Queue deviceQueue = device->getQueue(graphicsQueueFamilyIndex, 0);
-    vk::Queue presentQueue = device->getQueue(graphicsQueueFamilyIndex, 0);
+    auto deviceQueue = device->getQueue(graphicsQueueFamilyIndex, 0);
+    auto presentQueue = device->getQueue(presentQueueFamilyIndex, 0);
+
+
+    for (size_t i = 0; i < commandBuffers.size(); i++) {
+
+
+        auto beginInfo = vk::CommandBufferBeginInfo{};
+        commandBuffers[i]->begin(beginInfo);
+        vk::ClearValue clearValues{};
+        auto renderPassBeginInfo = vk::RenderPassBeginInfo{ renderPass.get(), framebuffers[i].get(),
+            vk::Rect2D{ { 0, 0 }, extent }, 1, &clearValues };
+
+        commandBuffers[i]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+        commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
+        commandBuffers[i]->draw(3, 1, 0, 0);
+        commandBuffers[i]->endRenderPass();
+        commandBuffers[i]->end();
+    }
+    auto semaphoreCreateInfo = vk::SemaphoreCreateInfo{};
+    auto imageAvailableSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
+    auto renderFinishedSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
 
     while (!glfwWindowShouldClose(window)) {
         // Keep running
-
         glfwPollEvents();
+        auto imageIndex = device->acquireNextImageKHR(swapChain.get(),
+            std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore.get(), {});
+
+        vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        auto submitInfo = vk::SubmitInfo{ 1, &imageAvailableSemaphore.get(), &waitStageMask, 1,
+            &commandBuffers[imageIndex.value].get(), 1, &renderFinishedSemaphore.get() };
+        
     }
 }
