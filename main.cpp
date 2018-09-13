@@ -74,14 +74,12 @@ int main() {
                 return qfp.queueFlags & vk::QueueFlagBits::eGraphics;
             }));
 
-    size_t presentQueueFamilyIndex = [&]() {
-        for (size_t i = 0; i < queueFamilyProperties.size(); i++) {
-            if (physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(i), surface.get())) {
-                return i;
-            }
+    size_t presentQueueFamilyIndex = 0u;
+    for (size_t i = 0; i < queueFamilyProperties.size(); i++) {
+        if (physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(i), surface.get())) {
+            presentQueueFamilyIndex = i;
         }
-        return 0ul;
-    }();
+    }
 
     std::set<size_t> uniqueQueueFamilyIndices = { graphicsQueueFamilyIndex, presentQueueFamilyIndex };
 
@@ -184,6 +182,8 @@ int main() {
 
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
+    options.SetOptimizationLevel(shaderc_optimization_level_performance);
+
     shaderc::SpvCompilationResult vertShaderModule =
         compiler.CompileGlslToSpv(kShaderSource, shaderc_glsl_vertex_shader, "vertex shader", options);
     if (vertShaderModule.GetCompilationStatus() != shaderc_compilation_status_success) {
@@ -195,8 +195,8 @@ int main() {
         vk::ShaderModuleCreateInfo{ {}, vertSize * sizeof(uint32_t), vertShaderCode.data() };
     auto vertexShaderModule = device->createShaderModuleUnique(vertShaderCreateInfo);
 
-    shaderc::SpvCompilationResult fragShaderModule =
-        compiler.CompileGlslToSpv(fragmentShader, shaderc_glsl_fragment_shader, "fragment shader", options);
+    shaderc::SpvCompilationResult fragShaderModule = compiler.CompileGlslToSpv(
+        fragmentShader, shaderc_glsl_fragment_shader, "fragment shader", options);
     if (fragShaderModule.GetCompilationStatus() != shaderc_compilation_status_success) {
         std::cerr << fragShaderModule.GetErrorMessage();
     }
@@ -229,8 +229,7 @@ int main() {
 
     auto rasterizer = vk::PipelineRasterizationStateCreateInfo{ {}, /*depthClamp*/ false,
         /*rasterizeDiscard*/ false, vk::PolygonMode::eFill, {},
-        /*frontFace*/ vk::FrontFace::eCounterClockwise,{},{},{},{},1.0f };
-
+        /*frontFace*/ vk::FrontFace::eCounterClockwise, {}, {}, {}, {}, 1.0f };
 
     auto multisampling = vk::PipelineMultisampleStateCreateInfo{ {}, vk::SampleCountFlagBits::e1, false, 1.0 };
 
@@ -241,10 +240,8 @@ int main() {
         vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
             vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
 
-
     auto colorBlending = vk::PipelineColorBlendStateCreateInfo{ {}, /*logicOpEnable=*/false,
         vk::LogicOp::eCopy, /*attachmentCount=*/1, /*colourAttachments=*/&colorBlendAttachment };
-
 
     auto pipelineLayout = device->createPipelineLayoutUnique({}, nullptr);
 
@@ -263,8 +260,18 @@ int main() {
         &vertexInputInfo, &inputAssembly, nullptr, &viewportState, &rasterizer, &multisampling,
         nullptr, &colorBlending, nullptr, *pipelineLayout, *renderPass, 0 };
 
-    auto pipeline = device->createGraphicsPipelineUnique({},pipelineCreateInfo);
-    
+    auto pipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo);
+
+    std::vector<vk::UniqueFramebuffer> framebuffers(imageCount);
+    for (size_t i = 0; i < imageViews.size(); i++) {
+        framebuffers[i] = device->createFramebufferUnique(vk::FramebufferCreateInfo{
+            {}, *renderPass, 1, &(*imageViews[i]), extent.width, extent.height, 1 });
+    }
+    auto commandPoolUnique =
+        device->createCommandPoolUnique({ {}, static_cast<uint32_t>(graphicsQueueFamilyIndex) });
+
+    std::vector<vk::UniqueCommandBuffer> commandBuffers = device->allocateCommandBuffersUnique(
+        vk::CommandBufferAllocateInfo(commandPoolUnique.get(), vk::CommandBufferLevel::ePrimary, framebuffers.size()));
 
     vk::Queue deviceQueue = device->getQueue(graphicsQueueFamilyIndex, 0);
     vk::Queue presentQueue = device->getQueue(graphicsQueueFamilyIndex, 0);
