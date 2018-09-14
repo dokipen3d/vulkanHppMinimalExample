@@ -261,10 +261,8 @@ int main() {
         vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput,
         {}, vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite };
 
-    // vk::PipelineStageFlagBits::eColorAttachmentOutput
-    // vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::
-    auto renderPass =
-        device->createRenderPassUnique(vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass, 1, &subpassDependency });
+    auto renderPass = device->createRenderPassUnique(
+        vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass, 1, &subpassDependency });
 
     auto pipelineCreateInfo = vk::GraphicsPipelineCreateInfo{ {}, 2, pipelineShaderStages.data(),
         &vertexInputInfo, &inputAssembly, nullptr, &viewportState, &rasterizer, &multisampling,
@@ -287,9 +285,7 @@ int main() {
     auto deviceQueue = device->getQueue(graphicsQueueFamilyIndex, 0);
     auto presentQueue = device->getQueue(presentQueueFamilyIndex, 0);
 
-
     for (size_t i = 0; i < commandBuffers.size(); i++) {
-
 
         auto beginInfo = vk::CommandBufferBeginInfo{};
         commandBuffers[i]->begin(beginInfo);
@@ -304,9 +300,7 @@ int main() {
         commandBuffers[i]->end();
     }
 
-
     while (!glfwWindowShouldClose(window)) {
-        // Keep running
         glfwPollEvents();
         auto imageIndex = device->acquireNextImageKHR(swapChain.get(),
             std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore.get(), {});
@@ -318,7 +312,8 @@ int main() {
 
         deviceQueue.submit(submitInfo, {});
 
-        auto presentInfo = vk::PresentInfoKHR{1, &renderFinishedSemaphore.get(), 1, &swapChain.get(), &imageIndex.value};
+        auto presentInfo = vk::PresentInfoKHR{ 1, &renderFinishedSemaphore.get(), 1,
+            &swapChain.get(), &imageIndex.value };
         presentQueue.presentKHR(presentInfo);
 
         device->waitIdle();
