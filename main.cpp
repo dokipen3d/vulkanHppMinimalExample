@@ -253,8 +253,18 @@ int main() {
     auto subpass = vk::SubpassDescription{ {}, vk::PipelineBindPoint::eGraphics,
         /*inAttachmentCount*/ 0, nullptr, 1, &colourAttachmentRef };
 
+    auto semaphoreCreateInfo = vk::SemaphoreCreateInfo{};
+    auto imageAvailableSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
+    auto renderFinishedSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
+
+    auto subpassDependency = vk::SubpassDependency{ VK_SUBPASS_EXTERNAL, 0,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        {}, vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite };
+
+    // vk::PipelineStageFlagBits::eColorAttachmentOutput
+    // vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::
     auto renderPass =
-        device->createRenderPassUnique(vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass });
+        device->createRenderPassUnique(vk::RenderPassCreateInfo{ {}, 1, &colorAttachment, 1, &subpass, 1, &subpassDependency });
 
     auto pipelineCreateInfo = vk::GraphicsPipelineCreateInfo{ {}, 2, pipelineShaderStages.data(),
         &vertexInputInfo, &inputAssembly, nullptr, &viewportState, &rasterizer, &multisampling,
@@ -270,8 +280,9 @@ int main() {
     auto commandPoolUnique =
         device->createCommandPoolUnique({ {}, static_cast<uint32_t>(graphicsQueueFamilyIndex) });
 
-    auto commandBuffers = device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(
-        commandPoolUnique.get(), vk::CommandBufferLevel::ePrimary, framebuffers.size()));
+    std::vector<vk::UniqueCommandBuffer> commandBuffers =
+        device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(
+            commandPoolUnique.get(), vk::CommandBufferLevel::ePrimary, framebuffers.size()));
 
     auto deviceQueue = device->getQueue(graphicsQueueFamilyIndex, 0);
     auto presentQueue = device->getQueue(presentQueueFamilyIndex, 0);
@@ -292,9 +303,7 @@ int main() {
         commandBuffers[i]->endRenderPass();
         commandBuffers[i]->end();
     }
-    auto semaphoreCreateInfo = vk::SemaphoreCreateInfo{};
-    auto imageAvailableSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
-    auto renderFinishedSemaphore = device->createSemaphoreUnique(semaphoreCreateInfo);
+
 
     while (!glfwWindowShouldClose(window)) {
         // Keep running
@@ -303,8 +312,15 @@ int main() {
             std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore.get(), {});
 
         vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
         auto submitInfo = vk::SubmitInfo{ 1, &imageAvailableSemaphore.get(), &waitStageMask, 1,
             &commandBuffers[imageIndex.value].get(), 1, &renderFinishedSemaphore.get() };
-        
+
+        deviceQueue.submit(submitInfo, {});
+
+        auto presentInfo = vk::PresentInfoKHR{1, &renderFinishedSemaphore.get(), 1, &swapChain.get(), &imageIndex.value};
+        presentQueue.presentKHR(presentInfo);
+
+        device->waitIdle();
     }
 }
