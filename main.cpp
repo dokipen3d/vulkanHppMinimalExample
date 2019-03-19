@@ -130,7 +130,6 @@ int main() {
     std::vector<vk::UniqueImageView> imageViews;
     imageViews.reserve(swapChainImages.size());
     for (auto image : swapChainImages) {
-
         vk::ImageViewCreateInfo imageViewCreateInfo(vk::ImageViewCreateFlags(), image,
             vk::ImageViewType::e2D, format,
             vk::ComponentMapping{ vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
