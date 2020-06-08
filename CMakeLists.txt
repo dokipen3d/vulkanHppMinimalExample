@@ -1,13 +1,14 @@
 project(vulkanHelloWorld)
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++14  " )
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++14  " )
 
 add_executable(${PROJECT_NAME} main.cpp)
+set_property(TARGET vulkanHelloWorld PROPERTY CXX_STANDARD 17)
 
-find_package(Boost REQUIRED)
+#find_package(Boost REQUIRED)
 find_package(Vulkan REQUIRED)
-find_package(glfw3 3.3 REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
 find_library(SHADERC_LIB shaderc_combined $ENV{VULKAN_SDK}/Lib)
 
 MESSAGE(STATUS "Found shaderc in: ${SHADERC_LIB}")

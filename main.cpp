@@ -3,9 +3,10 @@
 #include <algorithm>
 #include <cstring>
 #include <iostream>
-#include <libshaderc/shaderc.hpp>
+#include <shaderc/shaderc.hpp>
 #include <set>
 #include <vulkan/vulkan.hpp>
+
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
@@ -45,6 +46,10 @@ int main() {
         vk::InstanceCreateInfo{ {}, &appInfo, static_cast<uint32_t>(layers.size()), layers.data(),
             static_cast<uint32_t>(glfwExtensionsVector.size()), glfwExtensionsVector.data() });
 
+    //vk::DispatchLoaderDynamic dldi(*instance);
+    auto dldi = vk::DispatchLoaderDynamic(*instance, vkGetInstanceProcAddr);
+
+
     auto messenger = instance->createDebugUtilsMessengerEXTUnique(
         vk::DebugUtilsMessengerCreateInfoEXT{ {},
             vk::DebugUtilsMessageSeverityFlagBitsEXT::eError | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
@@ -52,7 +57,7 @@ int main() {
             vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
                 vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
             debugCallback },
-        nullptr, vk::DispatchLoaderDynamic{ *instance });
+        nullptr, dldi);
 
     VkSurfaceKHR surfaceTmp;
     VkResult err = glfwCreateWindowSurface(*instance, window, nullptr, &surfaceTmp);
@@ -293,7 +298,7 @@ int main() {
             vk::Rect2D{ { 0, 0 }, extent }, 1, &clearValues };
 
         commandBuffers[i]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-        commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
+        commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, *(pipeline.value));
         commandBuffers[i]->draw(3, 1, 0, 0);
         commandBuffers[i]->endRenderPass();
         commandBuffers[i]->end();
