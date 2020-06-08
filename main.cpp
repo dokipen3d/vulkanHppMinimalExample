@@ -272,7 +272,7 @@ int main() {
         &vertexInputInfo, &inputAssembly, nullptr, &viewportState, &rasterizer, &multisampling,
         nullptr, &colorBlending, nullptr, *pipelineLayout, *renderPass, 0 };
 
-    auto pipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo);
+    auto pipeline = device->createGraphicsPipelineUnique({}, pipelineCreateInfo).value;
 
     auto framebuffers = std::vector<vk::UniqueFramebuffer>(imageCount);
     for (size_t i = 0; i < imageViews.size(); i++) {
@@ -298,7 +298,7 @@ int main() {
             vk::Rect2D{ { 0, 0 }, extent }, 1, &clearValues };
 
         commandBuffers[i]->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-        commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, *(pipeline.value));
+        commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
         commandBuffers[i]->draw(3, 1, 0, 0);
         commandBuffers[i]->endRenderPass();
         commandBuffers[i]->end();
