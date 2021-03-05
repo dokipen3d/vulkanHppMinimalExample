@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cstring>
 #include <iostream>
-#include <shaderc/shaderc.hpp>
 #include <set>
+#include <shaderc/shaderc.hpp>
 #include <vulkan/vulkan.hpp>
 
 
@@ -40,13 +40,13 @@ int main() {
     auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     std::vector<const char*> glfwExtensionsVector(glfwExtensions, glfwExtensions + glfwExtensionCount);
     glfwExtensionsVector.push_back("VK_EXT_debug_utils");
-    auto layers = std::vector<const char*>{ "VK_LAYER_LUNARG_standard_validation" };
+    auto layers = std::vector<const char*>{ "VK_LAYER_KHRONOS_validation" };
 
     auto instance = vk::createInstanceUnique(
         vk::InstanceCreateInfo{ {}, &appInfo, static_cast<uint32_t>(layers.size()), layers.data(),
             static_cast<uint32_t>(glfwExtensionsVector.size()), glfwExtensionsVector.data() });
 
-    //vk::DispatchLoaderDynamic dldi(*instance);
+    // vk::DispatchLoaderDynamic dldi(*instance);
     auto dldi = vk::DispatchLoaderDynamic(*instance, vkGetInstanceProcAddr);
 
 
@@ -66,6 +66,10 @@ int main() {
 
     auto physicalDevices = instance->enumeratePhysicalDevices();
 
+    for (auto& d : physicalDevices) {
+        std::cout << d.getProperties().deviceName << "\n";
+    }
+
     auto physicalDevice = physicalDevices[std::distance(physicalDevices.begin(),
         std::find_if(physicalDevices.begin(), physicalDevices.end(), [](const vk::PhysicalDevice& physicalDevice) {
             return strstr(physicalDevice.getProperties().deviceName, "Intel");
@@ -80,13 +84,14 @@ int main() {
             }));
 
     size_t presentQueueFamilyIndex = 0u;
-    for (size_t i = 0; i < queueFamilyProperties.size(); i++) {
+    for (auto i = 0ul; i < queueFamilyProperties.size(); i++) {
         if (physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(i), surface.get())) {
             presentQueueFamilyIndex = i;
         }
     }
 
-    std::set<size_t> uniqueQueueFamilyIndices = { graphicsQueueFamilyIndex, presentQueueFamilyIndex };
+    std::set<uint32_t> uniqueQueueFamilyIndices = { static_cast<uint32_t>(graphicsQueueFamilyIndex),
+        static_cast<uint32_t>(presentQueueFamilyIndex) };
 
     std::vector<uint32_t> FamilyIndices = { uniqueQueueFamilyIndices.begin(),
         uniqueQueueFamilyIndices.end() };
@@ -94,16 +99,16 @@ int main() {
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 
     float queuePriority = 0.0f;
-    for (int queueFamilyIndex : uniqueQueueFamilyIndices) {
+    for (auto& queueFamilyIndex : uniqueQueueFamilyIndices) {
         queueCreateInfos.push_back(vk::DeviceQueueCreateInfo{ vk::DeviceQueueCreateFlags(),
             static_cast<uint32_t>(queueFamilyIndex), 1, &queuePriority });
     }
 
     const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-    vk::UniqueDevice device = physicalDevice.createDeviceUnique(
-        vk::DeviceCreateInfo(vk::DeviceCreateFlags(), queueCreateInfos.size(),
-            queueCreateInfos.data(), 0, nullptr, deviceExtensions.size(), deviceExtensions.data()));
+    vk::UniqueDevice device = physicalDevice.createDeviceUnique(vk::DeviceCreateInfo(
+        vk::DeviceCreateFlags(), static_cast<uint32_t>(queueCreateInfos.size()), queueCreateInfos.data(),
+        0u, nullptr, static_cast<uint32_t>(deviceExtensions.size()), deviceExtensions.data()));
 
     uint32_t imageCount = 2;
 
@@ -283,11 +288,11 @@ int main() {
         device->createCommandPoolUnique({ {}, static_cast<uint32_t>(graphicsQueueFamilyIndex) });
 
     std::vector<vk::UniqueCommandBuffer> commandBuffers =
-        device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(
-            commandPoolUnique.get(), vk::CommandBufferLevel::ePrimary, framebuffers.size()));
+        device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(commandPoolUnique.get(),
+            vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(framebuffers.size())));
 
-    auto deviceQueue = device->getQueue(graphicsQueueFamilyIndex, 0);
-    auto presentQueue = device->getQueue(presentQueueFamilyIndex, 0);
+    auto deviceQueue = device->getQueue(static_cast<uint32_t>(graphicsQueueFamilyIndex), 0);
+    auto presentQueue = device->getQueue(static_cast<uint32_t>(presentQueueFamilyIndex), 0);
 
     for (size_t i = 0; i < commandBuffers.size(); i++) {
 
@@ -318,7 +323,7 @@ int main() {
 
         auto presentInfo = vk::PresentInfoKHR{ 1, &renderFinishedSemaphore.get(), 1,
             &swapChain.get(), &imageIndex.value };
-        presentQueue.presentKHR(presentInfo);
+        auto result = presentQueue.presentKHR(presentInfo);
 
         device->waitIdle();
     }
