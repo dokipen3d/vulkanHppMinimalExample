@@ -9,7 +9,7 @@ set_property(TARGET vulkanHelloWorld PROPERTY CXX_STANDARD 17)
 #find_package(Boost REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
-find_library(SHADERC_LIB shaderc_combined $ENV{VULKAN_SDK}/Lib)
+find_library(SHADERC_LIB shaderc_combined $ENV{VULKAN_SDK}/lib)
 
 MESSAGE(STATUS "Found shaderc in: ${SHADERC_LIB}")
 
