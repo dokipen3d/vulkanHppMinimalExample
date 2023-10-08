@@ -34,17 +34,20 @@ int main() {
     glfwSetKeyCallback(window, key_callback);
 
     vk::ApplicationInfo appInfo("Hello Triangle", VK_MAKE_VERSION(1, 0, 0), "No Engine",
-        VK_MAKE_VERSION(1, 0, 0), VK_API_VERSION_1_0);
+        VK_MAKE_VERSION(1, 0, 0), VK_API_VERSION_1_2);
 
     auto glfwExtensionCount = 0u;
     auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     std::vector<const char*> glfwExtensionsVector(glfwExtensions, glfwExtensions + glfwExtensionCount);
     glfwExtensionsVector.push_back("VK_EXT_debug_utils");
+    glfwExtensionsVector.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+
     auto layers = std::vector<const char*>{ "VK_LAYER_KHRONOS_validation" };
 
-    auto instance = vk::createInstanceUnique(
-        vk::InstanceCreateInfo{ {}, &appInfo, static_cast<uint32_t>(layers.size()), layers.data(),
-            static_cast<uint32_t>(glfwExtensionsVector.size()), glfwExtensionsVector.data() });
+    auto instance = vk::createInstanceUnique(vk::InstanceCreateInfo{
+        vk::InstanceCreateFlags{ VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR }, &appInfo,
+        static_cast<uint32_t>(layers.size()), layers.data(),
+        static_cast<uint32_t>(glfwExtensionsVector.size()), glfwExtensionsVector.data() });
 
     // vk::DispatchLoaderDynamic dldi(*instance);
     auto dldi = vk::DispatchLoaderDynamic(*instance, vkGetInstanceProcAddr);
@@ -72,7 +75,7 @@ int main() {
 
     auto physicalDevice = physicalDevices[std::distance(physicalDevices.begin(),
         std::find_if(physicalDevices.begin(), physicalDevices.end(), [](const vk::PhysicalDevice& physicalDevice) {
-            return strstr(physicalDevice.getProperties().deviceName, "Intel");
+            return strstr(physicalDevice.getProperties().deviceName, "M1");
         }))];
 
     auto queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
@@ -104,7 +107,7 @@ int main() {
             static_cast<uint32_t>(queueFamilyIndex), 1, &queuePriority });
     }
 
-    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_portability_subset" };
 
     vk::UniqueDevice device = physicalDevice.createDeviceUnique(vk::DeviceCreateInfo(
         vk::DeviceCreateFlags(), static_cast<uint32_t>(queueCreateInfos.size()), queueCreateInfos.data(),
